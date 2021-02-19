@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from "react";
 import {
   Button,
   ButtonGroup,
+  Dialog,
   Slider,
   TextField,
   Tooltip,
@@ -32,6 +33,23 @@ const getBrushCursor = (brushColour: string) =>
     brushColour
   )}"></path><path d="M340.587,6.796c-8.615-8.614-22.425-9.1-31.624-1.112c-5.782,5.021-141.818,123.166-160.166,141.513 c-9.175,9.175-20.946,24.898-31.124,39.428l42.864,43.271c14.546-10.18,30.345-22.003,39.65-31.308 C218.749,180.024,336.69,44.193,341.703,38.42C349.688,29.22,349.201,15.41,340.587,6.796z" style="fill:brown"></path></g></g></svg>`;
 
+const PublishConfirmation = React.memo((props: any) => (
+  <Dialog open={props.open} aria-labelledby="" aria-describedby="">
+    <div className="center m20">
+      <div className="center-text mb10">
+        <Typography variant="h6">
+          Your drawing will be stored and randomly shown on the front page!
+        </Typography>
+      </div>
+      <Typography variant="h5">Do you accept?</Typography>
+      <div className="center-row wrap mt10">
+        <Button onClick={props.onAccept}>✅</Button>
+        <Button onClick={props.onReject}>❌</Button>
+      </div>
+    </div>
+  </Dialog>
+));
+
 const defaultProps: DrawProps = {
   brushRadius: 5,
   brushRadiusMin: 1,
@@ -44,6 +62,7 @@ const defaultProps: DrawProps = {
   onDrawingChanged: () => {},
   displayedHistory: logo,
   onShare: () => {},
+  published: true,
 };
 
 const Draw = (props: DrawProps) => {
@@ -60,16 +79,15 @@ const Draw = (props: DrawProps) => {
     deviceIsSmall ? getProp("brushRadiusSmall") : getProp("brushRadius")
   );
 
-  const [displayedHistory, setDisplayedHistory] = useState(
-    getProp("displayedHistory") as Stroke[]
-  ); // the strokes currently displayed (previously forcedHistory)
+  // the strokes currently displayed (previously forcedHistory)
+  const displayedHistory: Stroke[] = getProp("displayedHistory");
   const [strokeHistory, setStrokeHistory] = useState(
     getProp("displayedHistory") as Stroke[]
   ); // the strokes currently tracked (undo/redo)
 
   const [description, setDescription] = useState("");
   const [inputValid, setInputValid] = useState({ description: false });
-
+  const [showPubMsg, setShowPubMsg] = useState(false);
   const undoLevel = useRef(0);
 
   // refresh brushCursor on colour change
@@ -86,10 +104,12 @@ const Draw = (props: DrawProps) => {
     setDescription(newDesc);
     setInputValid({ description: !!newDesc });
   };
+
   const onSubmit = getProp("onSubmit"),
     onQuit = getProp("onQuit"),
     onDrawingChanged = getProp("onDrawingChanged"),
-    onShare = getProp("onShare");
+    onShare = getProp("onShare"),
+    published = getProp("published");
 
   const handleSubmit = () => {
     // BUG: need to preprocess displayedHistory to remove out-of-bounds points
@@ -112,13 +132,13 @@ const Draw = (props: DrawProps) => {
   const handleUndo = () => {
     undoLevel.current = Math.min(strokeHistory.length, undoLevel.current + 1);
     debug("handleUndo", undoLevel.current);
-    setDisplayedHistory(sliceHistory());
+    onDrawingChanged(sliceHistory());
   };
 
   const handleRedo = () => {
     undoLevel.current = Math.max(0, undoLevel.current - 1);
     debug("handleRedo", undoLevel.current);
-    setDisplayedHistory(sliceHistory());
+    onDrawingChanged(sliceHistory());
   };
 
   const handleErase = () => {
@@ -130,7 +150,7 @@ const Draw = (props: DrawProps) => {
       undoLevel.current = -1; // a hack to restore previous strokeHistory on undo, if not yet committed
     }
     debug("handleErase", undoLevel.current);
-    setDisplayedHistory([]);
+    onDrawingChanged([] as Stroke[]);
   };
 
   // TODO: refactor all drawing logic into a statemachine
@@ -147,7 +167,6 @@ const Draw = (props: DrawProps) => {
     ];
     undoLevel.current = 0;
     setStrokeHistory(newHistory);
-    setDisplayedHistory(newHistory);
     onDrawingChanged(newHistory);
   };
 
@@ -163,7 +182,6 @@ const Draw = (props: DrawProps) => {
         : stroke
     );
     setStrokeHistory(newHistory);
-    setDisplayedHistory(newHistory);
     onDrawingChanged(newHistory);
   };
 
@@ -171,6 +189,14 @@ const Draw = (props: DrawProps) => {
 
   return (
     <div className="center header-padding">
+      <PublishConfirmation
+        open={showPubMsg}
+        onAccept={() => {
+          onShare();
+          setShowPubMsg(false);
+        }}
+        onReject={() => setShowPubMsg(false)}
+      />
       <div className="center-text mb50">
         <Typography variant="h5">
           Draw something for {getProp("name")} 🎨
@@ -260,7 +286,7 @@ const Draw = (props: DrawProps) => {
           </Button>
         </ButtonGroup>
       </div>
-      {onSubmit && !!displayedHistory.length && (
+      {onSubmit && (
         <div className="center-text mb10">
           <div className="mb10">
             <Typography
@@ -282,13 +308,16 @@ const Draw = (props: DrawProps) => {
                 ? "(press enter to lock in your drawing)"
                 : "Must be filled"
             }
+            disabled={!displayedHistory.length} // prevent huge layout shift
             error={!inputValid.description}
             onKeyDown={handleKeyDown} //https://stackoverflow.com/questions/22473950/keypress-event-not-firing-in-android-mobile
           />
         </div>
       )}
       {!onSubmit && displayedHistory.length > 0 && (
-        <Button onClick={onShare}>Publish my drawing</Button>
+        <Button onClick={() => setShowPubMsg(true)} disabled={published}>
+          Publish my drawing
+        </Button>
       )}
       <Button onClick={onQuit}>Quit</Button>
     </div>

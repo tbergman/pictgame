@@ -13,7 +13,6 @@ import {
 } from "./crypto";
 import {
   MainContext,
-  _base64ToArrayBuffer,
   getRandInRange,
   serialiseStrokes,
   deserialiseStrokes,
@@ -55,23 +54,24 @@ const mainMachine = createMachine<MainContext>(
     entry: "connect",
     context: {
       errorMsg: "",
-      myPrivateKey: undefined,
-      myPublicKey: undefined,
+      myPrivateKey: null,
+      myPublicKey: null,
       name: "",
       target: "",
-      sharedKey: undefined,
+      sharedKey: null,
       helloCounter: 20,
-      targetKey: undefined,
-      testData: undefined,
+      targetKey: null,
+      testData: null,
       forky: false,
       level: getRandInRange(0, 2),
       allowLower: true, //Math.random() >= 0.5,
-      aliceData: undefined,
-      oppData: undefined,
+      aliceData: null,
+      oppData: null,
       aliceGuess: "",
       bobGuess: "",
       oppDisconnected: false,
       online: false,
+      published: false,
     },
     on: {
       CONNECTED: {
@@ -522,8 +522,8 @@ const mainMachine = createMachine<MainContext>(
         on: {
           QUIT: "idle",
           PUB_DRAWING: {
-            target: "idle",
-            actions: "publishDrawing",
+            cond: (context) => !context.published,
+            actions: ["publishDrawing", assign({ published: (_) => true })],
           },
         },
       },
@@ -649,14 +649,14 @@ const processData = (source: string, payload: any, wasEncrypted?: boolean) => {
         if (!payload.key) break;
         mainService.send("MATCH_CHECK", {
           source,
-          key: _base64ToArrayBuffer(payload.key),
+          key: payload.key,
         });
         break;
       case "MATCHCHECKACK":
         if (!payload.key) break;
         mainService.send("MATCH_CHECK_ACK", {
           source,
-          key: _base64ToArrayBuffer(payload.key),
+          key: payload.key,
         });
         break;
       case "USER_ACCEPTS":

@@ -5,6 +5,7 @@ import { debug, useLocalStorage } from "./util";
 import Error from "./Error";
 import {
   Button,
+  ClickAwayListener,
   CssBaseline,
   Typography,
   useMediaQuery,
@@ -20,7 +21,7 @@ import Brightness4Icon from "@material-ui/icons/Brightness4";
 import BugReportIcon from "@material-ui/icons/BugReport";
 
 import { Stroke } from "./Canvas";
-import LogoWrapper from "./LogoWrapper";
+import LogoWrapper, { logo } from "./LogoWrapper";
 import Loading from "./Loading";
 
 const Game = lazy(() => import("./Game"));
@@ -51,35 +52,41 @@ const OptionsFAB = (props: any) => {
   const { darkMode, onToggle } = props;
   return (
     <div className="fab">
-      <SpeedDial
-        ariaLabel="Options"
-        hidden={false}
-        icon={<MenuIcon />}
-        open={fabOpen}
-        direction={"right"}
-        onClick={() => setFabOpen(!fabOpen)}
+      <ClickAwayListener
+        mouseEvent="onMouseDown"
+        touchEvent="onTouchStart"
+        onClickAway={() => setFabOpen(false)}
       >
-        <SpeedDialAction
-          key={"github"}
-          icon={<GitHubIcon />}
-          tooltipTitle={"Github"}
-          onClick={() => window.open("https://github.com/siidheesh/pictgame")}
-        />
-        <SpeedDialAction
-          key={"bugreport"}
-          icon={<BugReportIcon />}
-          tooltipTitle={"Report a bug"}
-          onClick={() =>
-            window.open("https://github.com/siidheesh/pictgame/issues")
-          }
-        />
-        <SpeedDialAction
-          key={"darkMode"}
-          icon={darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
-          tooltipTitle={darkMode ? "Light" : "Dark"}
-          onClick={onToggle}
-        />
-      </SpeedDial>
+        <SpeedDial
+          ariaLabel="Options"
+          hidden={false}
+          icon={<MenuIcon />}
+          open={fabOpen}
+          direction={"right"}
+          onClick={() => setFabOpen(!fabOpen)}
+        >
+          <SpeedDialAction
+            key={"github"}
+            icon={<GitHubIcon />}
+            tooltipTitle={"Github"}
+            onClick={() => window.open("https://github.com/siidheesh/pictgame")}
+          />
+          <SpeedDialAction
+            key={"bugreport"}
+            icon={<BugReportIcon />}
+            tooltipTitle={"Report a bug"}
+            onClick={() =>
+              window.open("https://github.com/siidheesh/pictgame/issues")
+            }
+          />
+          <SpeedDialAction
+            key={"darkMode"}
+            icon={darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
+            tooltipTitle={darkMode ? "Light" : "Dark"}
+            onClick={onToggle}
+          />
+        </SpeedDial>
+      </ClickAwayListener>
     </div>
   );
 };
@@ -136,13 +143,14 @@ const Main = (props: any) => {
     return (
       <Suspense fallback={<Loading />}>
         <Draw
-          displayedHistory={state.context.aliceData?.pic ?? []}
+          displayedHistory={state.context.aliceData?.pic ?? logo}
           name={"fun!"}
           onQuit={() => send("QUIT")}
           onShare={() => send("PUB_DRAWING")}
           onDrawingChanged={(pic: Stroke[]) =>
             send({ type: "DRAWING_CHANGED", pic })
           }
+          published={state.context.published}
         />
       </Suspense>
     );
